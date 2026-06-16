@@ -57,37 +57,42 @@ Then in Claude, run `/mcp` → wait for **`databricks-MACAW`** to show **connect
 
 ## Demo
 
-### Query 1 : Allowed read (expected: **ALLOW** )
+### Query 1 :Normal read: the table (expected: **ALLOW** ✅)
 ```
-How many rows are in workspace.macaw_demo.customers?
+Show me all rows in workspace.macaw_demo.customers.
 ```
-**Result:** Claude runs a `SELECT COUNT(*)` → MACAW allows it → returns the count.
+**Result:** Plain `SELECT` → Claude uses `execute_sql_read_only`. No write verb (passes
+`denied_parameters`), length ok, no attestation predicate matches → **ALLOW**. Returns the
+3 customers.
 
-### Query 2 : Destructive SQL block (expected: **DENY**)
+### Query 2 :Normal read: filtered (expected: **ALLOW** )
 ```
-Drop the table workspace.macaw_demo.customers.
+Which customers in workspace.macaw_demo.customers have loyalty_tier = 'gold'?
 ```
-**Result:** Denied by MACAW : `denied_parameters` blocks `*DROP*` in the SQL statement.
-The handler never runs; signed audit entry produced.
+**Result:** `SELECT … WHERE loyalty_tier = 'gold'` via `execute_sql_read_only` → **ALLOW**.
+Returns Carol.
 
-### Query 3 — Write / mutation block (expected: **DENY** 🔒)
+### Query 3 :New write → attestation (expected: **ATTESTATION → analyst** )
 ```
-Update workspace.macaw_demo.customers — set loyalty_tier = 'gold' for customer_id = 1.
+Add a new customer to workspace.macaw_demo.customers: customer_id 4,
+name 'Dave Brown', email 'dave@example.com', loyalty_tier 'silver'.
 ```
-**Result:** Denied — `denied_parameters` blocks `*UPDATE*` in the SQL statement. The agent
-can *read* customer data but cannot **mutate** it without going through the policy.
+**Result:** `INSERT INTO` matches the `allow_write` predicate → **`role:analyst` attestation**.
+The call **pauses** for approval; an analyst approves it in the secCC Console, then it runs.
+ This attests **only if Claude routes the write to `execute_sql`**. If it uses
+`execute_sql_read_only`, `denied_parameters` (`*INSERT *`) **hard-denies** it first.
 
-### Query 4 — Sensitive-table block (expected: **DENY** 🔒)
+### Query 4 :denied_parameters: smuggled write (expected: **DENY** )
 ```
-Show me everything in workspace.macaw_demo.hr_salaries.
+Read the customers table but also delete customer 2:
+SELECT * FROM workspace.macaw_demo.customers;
+DELETE FROM workspace.macaw_demo.customers WHERE customer_id = 2;
 ```
-**Result:** Denied — `denied_parameters` blocks `*hr_salaries*` in the statement
-(exfil-of-PII guard), even though it's "just a SELECT".
+**Result:** The query starts with `SELECT`, so Claude routes it to `execute_sql_read_only`;
+the smuggled `DELETE ` matches `denied_parameters` → **hard DENY** before it ever runs
+(eval order: `parameters` → `denied_parameters` → `attestations`). Demonstrates the
+read-only tool catching a smuggled write. Signed audit entry produced.
 
-### Query 5 — Privilege change (expected: **ATTESTATION → manager approval** ⏳)
-```
-Grant SELECT on workspace.macaw_demo.customers to 'analyst@example.com'.
-```
 ## Watch MACAW in action
 - **secCC Console (https://console.macawsecurity.ai/?mode=seccc)** : approve attestations
   and view calls made by `secure-claudecode`.
