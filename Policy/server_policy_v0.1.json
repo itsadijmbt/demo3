@@ -1,14 +1,12 @@
 {
   "policy_id": "app:databricks-remote-proxy",
-  "version": "0.2.0",
-  "description": "Databricks Managed MCP via SecureMCPProxy ",
+  "version": "0.3.0",
+  "description": "Databricks Managed MCP via SecureMCPProxy .",
   "resources": [
     "tool:databricks-remote-proxy/**"
   ],
   "attestations": [
-    "allow_destroy::{ params.query MATCHES '*DROP *' OR params.query MATCHES '*drop *' OR params.query MATCHES '*DELETE FROM*' OR params.query MATCHES '*delete from*' OR params.query MATCHES '*TRUNCATE*' OR params.query MATCHES '*truncate*' OR params.query MATCHES '*ALTER TABLE*' OR params.query MATCHES '*alter table*' OR params.query MATCHES '*VACUUM*' OR params.query MATCHES '*vacuum*' }",
-    "allow_write::{ params.query MATCHES '*INSERT INTO*' OR params.query MATCHES '*insert into*' OR params.query MATCHES '*UPDATE *' OR params.query MATCHES '*update *' OR params.query MATCHES '*MERGE INTO*' OR params.query MATCHES '*merge into*' OR params.query MATCHES '*COPY INTO*' OR params.query MATCHES '*copy into*' OR params.query MATCHES '*CREATE TABLE*' OR params.query MATCHES '*create table*' OR params.query MATCHES '*CREATE OR REPLACE*' }",
-    "allow_privilege::{ params.query MATCHES '*GRANT *' OR params.query MATCHES '*grant *' OR params.query MATCHES '*REVOKE*' OR params.query MATCHES '*revoke*' }"
+    "allow_write::{ params.query MATCHES '*INSERT INTO*' OR params.query MATCHES '*insert into*' OR params.query MATCHES '*UPDATE *' OR params.query MATCHES '*update *' OR params.query MATCHES '*MERGE INTO*' OR params.query MATCHES '*merge into*' OR params.query MATCHES '*CREATE TABLE*' OR params.query MATCHES '*create table*' OR params.query MATCHES '*COPY INTO*' OR params.query MATCHES '*copy into*' }"
   ],
   "constraints": {
     "parameters": {
@@ -28,6 +26,25 @@
       }
     },
     "denied_parameters": {
+      "tool:databricks-remote-proxy/execute_sql": {
+        "query": [
+          "*DROP *",
+          "*drop *",
+          "*DELETE *",
+          "*delete *",
+          "*TRUNCATE*",
+          "*truncate*",
+          "*ALTER *",
+          "*alter *",
+          "*REVOKE*",
+          "*revoke*",
+          "*GRANT *",
+          "*grant *",
+          "*VACUUM*",
+          "*vacuum*",
+          "*hr_salaries*"
+        ]
+      },
       "tool:databricks-remote-proxy/execute_sql_read_only": {
         "query": [
           "*DROP *",
@@ -53,25 +70,16 @@
           "*VACUUM*",
           "*vacuum*",
           "*COPY INTO*",
-          "*copy into*"
+          "*copy into*",
+          "*hr_salaries*"
         ]
       }
     },
     "attestations": {
-      "allow_destroy": {
-        "approval_criteria": "role:manager",
-        "timeout": 300,
-        "one_time": true
-      },
       "allow_write": {
-        "approval_criteria": "role:analyst",
+        "approval_criteria": "role:manager",
         "timeout": 300,
         "one_time": false
-      },
-      "allow_privilege": {
-        "approval_criteria": "role:manager",
-        "timeout": 300,
-        "one_time": true
       }
     }
   }
