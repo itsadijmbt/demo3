@@ -95,6 +95,4 @@ and **blocks** access to sensitive tables : per call, tied to identity, with a s
 audit trail. Same gateway pattern as the GitHub demo, different upstream.
 
 ---
-*Note: the exact SQL tool name + its statement parameter come from
-`python list_tools.py` against your endpoint; the policy's `denied_parameters` target
-that parameter. Verify the param name before finalizing the policy.*
+
