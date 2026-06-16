@@ -1,4 +1,4 @@
-# Databricks-MACAW Demo : managed Databricks MCP through SecCC
+# Databricks-MACAW Demo : SecCC x managed Databricks MCP secured by SeucreMCPProxy
 
 The official **Databricks managed MCP** (hosted, Streamable-HTTP) fronted by
 `SecureMCPProxy` and bridged to Claude/SecCC with a stdio gateway : so every SQL the
@@ -11,11 +11,24 @@ agent runs against your lakehouse is identity-bound, policy-checked, and audited
    (The managed MCP endpoint is `https://<workspace-hostname>/api/2.0/mcp/sql`.)
 4. `databricks_sql_policy_v0.1.json` added in the MACAW Console.
 5. SecCC installed **globally** (so it can intercept `bash:~$ claude`).
-6. Demo data created in the workspace (SQL Editor):
+6. Demo data created in the workspace (SQL Editor). `workspace` is the Free-Edition
+   default Unity Catalog catalog, so these are concrete, fully-qualified names:
    ```sql
    CREATE SCHEMA IF NOT EXISTS workspace.macaw_demo;
-   CREATE TABLE workspace.macaw_demo.customers AS
-     SELECT * FROM samples.bakehouse.sales_customers LIMIT 100;     -- droppable
+
+   -- customers: explicit columns the demo queries reference (customer_id, loyalty_tier)
+   CREATE TABLE workspace.macaw_demo.customers (
+     customer_id  BIGINT,
+     name         STRING,
+     email        STRING,
+     loyalty_tier STRING
+   );
+   INSERT INTO workspace.macaw_demo.customers VALUES
+     (1, 'Alice Smith', 'alice@example.com', 'silver'),
+     (2, 'Bob Jones',   'bob@example.com',   'bronze'),
+     (3, 'Carol White', 'carol@example.com', 'gold');
+
+   -- hr_salaries: the "sensitive" table for the exfil-block demo
    CREATE TABLE workspace.macaw_demo.hr_salaries (name STRING, salary DOUBLE);
    INSERT INTO workspace.macaw_demo.hr_salaries VALUES ('alice', 200000), ('bob', 180000);
    ```
@@ -50,18 +63,25 @@ How many rows are in workspace.macaw_demo.customers?
 ```
 **Result:** Claude runs a `SELECT COUNT(*)` → MACAW allows it → returns the count.
 
-### Query 2 : Destructive SQL block (expected: **DENY** )
+### Query 2 : Destructive SQL block (expected: **DENY**)
 ```
 Drop the table workspace.macaw_demo.customers.
 ```
 **Result:** Denied by MACAW : `denied_parameters` blocks `*DROP*` in the SQL statement.
 The handler never runs; signed audit entry produced.
 
-### Query 3 : Sensitive-table block (expected: **DENY** )
+### Query 3 — Write / mutation block (expected: **DENY** 🔒)
+```
+Update workspace.macaw_demo.customers — set loyalty_tier = 'gold' for customer_id = 1.
+```
+**Result:** Denied — `denied_parameters` blocks `*UPDATE*` in the SQL statement. The agent
+can *read* customer data but cannot **mutate** it without going through the policy.
+
+### Query 4 — Sensitive-table block (expected: **DENY** 🔒)
 ```
 Show me everything in workspace.macaw_demo.hr_salaries.
 ```
-**Result:** Denied : `denied_parameters` blocks `*hr_salaries*` in the statement
+**Result:** Denied — `denied_parameters` blocks `*hr_salaries*` in the statement
 (exfil-of-PII guard), even though it's "just a SELECT".
 
 ## Watch MACAW in action
@@ -75,4 +95,6 @@ and **blocks** access to sensitive tables : per call, tied to identity, with a s
 audit trail. Same gateway pattern as the GitHub demo, different upstream.
 
 ---
-
+*Note: the exact SQL tool name + its statement parameter come from
+`python list_tools.py` against your endpoint; the policy's `denied_parameters` target
+that parameter. Verify the param name before finalizing the policy.*
