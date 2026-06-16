@@ -84,6 +84,10 @@ Show me everything in workspace.macaw_demo.hr_salaries.
 **Result:** Denied — `denied_parameters` blocks `*hr_salaries*` in the statement
 (exfil-of-PII guard), even though it's "just a SELECT".
 
+### Query 5 — Privilege change (expected: **ATTESTATION → manager approval** ⏳)
+```
+Grant SELECT on workspace.macaw_demo.customers to 'analyst@example.com'.
+```
 ## Watch MACAW in action
 - **secCC Console (https://console.macawsecurity.ai/?mode=seccc)** : approve attestations
   and view calls made by `secure-claudecode`.
