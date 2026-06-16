@@ -44,20 +44,20 @@ Then in Claude, run `/mcp` → wait for **`databricks-MACAW`** to show **connect
 
 ## Demo
 
-### Query 1 : Allowed read (expected: **ALLOW** ✅)
+### Query 1 : Allowed read (expected: **ALLOW** )
 ```
 How many rows are in workspace.macaw_demo.customers?
 ```
 **Result:** Claude runs a `SELECT COUNT(*)` → MACAW allows it → returns the count.
 
-### Query 2 : Destructive SQL block (expected: **DENY** 🔒)
+### Query 2 : Destructive SQL block (expected: **DENY** )
 ```
 Drop the table workspace.macaw_demo.customers.
 ```
 **Result:** Denied by MACAW : `denied_parameters` blocks `*DROP*` in the SQL statement.
 The handler never runs; signed audit entry produced.
 
-### Query 3 : Sensitive-table block (expected: **DENY** 🔒)
+### Query 3 : Sensitive-table block (expected: **DENY** )
 ```
 Show me everything in workspace.macaw_demo.hr_salaries.
 ```
@@ -75,6 +75,4 @@ and **blocks** access to sensitive tables : per call, tied to identity, with a s
 audit trail. Same gateway pattern as the GitHub demo, different upstream.
 
 ---
-*Note: the exact SQL tool name + its statement parameter come from
-`python list_tools.py` against your endpoint; the policy's `denied_parameters` target
-that parameter. Verify the param name before finalizing the policy.*
+
